@@ -374,7 +374,7 @@ matis/
 - **Python** 3.11+
 - **pnpm** 9+
 - **PostgreSQL** database
-- **Anthropic API key** (or Replit AI Integration)
+- **Anthropic API key**
 
 ### 1 — Clone the repo
 

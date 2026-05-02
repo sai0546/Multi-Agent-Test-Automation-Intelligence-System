@@ -1,0 +1,39 @@
+What you'll be doing:
+
+Build multi-agent pipelines for automated test generation, log analysis, failure triage, and bug-filing workflows, working alongside senior engineers on well-scoped pieces of the system
+
+Contribute to evaluation systems that measure agent output quality — writing test cases, analyzing failure patterns, and extending eval frameworks under senior mentorship
+
+Add instrumentation, logging, and monitoring to agentic workflows so failures are visible and debuggable — learning the systems-thinking that makes infrastructure trustworthy
+
+Grow your judgment on where LLMs help and where they fail. Learn how to build solutions around both with mentorship.
+
+What we need to see:
+
+Pursuing or recently completed a Bachelor's Degree in Computer Science or equivalent
+
+Strong Python fundamentals — able to write clean, testable code and reason about structure beyond single scripts
+
+Hands-on exposure to AI-native development workflows — Claude Code, Cursor, Codex, or prompt engineering through coursework, internships, hackathons, or personal projects
+
+At least one project, open-source contribution, or coursework example where you coordinated an LLM into a working system end-to-end
+
+Foundational understanding of software testing, CI/CD concepts, or quality engineering principles
+
+Awareness of common LLM failure modes — hallucination, context limits, tool misuse — and curiosity about how to mitigate them
+
+Ways to stand out from the crowd:
+
+Built a side project, hackathon entry, or open-source contribution involving multi-agent systems, MCP servers, or custom LLM tool integrations that you can walk through end-to-end
+
+Experimented with evaluating LLM outputs — even a small eval harness or scoring script for a personal project demonstrates the right instinct
+
+You have shipped something others actually used. It could be a tool, script, or bot adopted by a club, lab, or open-source community. You also provided documentation that let people use it without you
+
+You show intellectual integrity about where your projects break and have built in recovery paths rather than hiding failures
+
+We are an equal opportunity employer and value diversity at our company. We do not discriminate based on race, religion, color, national origin, sex, gender, gender expression, sexual orientation, age, marital status, veteran status, or disability status. We provide reasonable accommodation for individuals with disabilities to participate in the application or interview process. Accommodations are also available to help perform essential job functions and receive other employment benefits. Please contact us to request accommodation.
+
+ 
+
+Widely considered to be one of the technology world’s most desirable employers, NVIDIA offers highly competitive salaries and a comprehensive benefits package. As you plan your future, see what we can offer to you and your family www.nvidiabenefits.com/

@@ -1,0 +1,571 @@
+PROJECT IDENTITY
+What you're building: An open-source multi-agent system that automates software testing workflows — from test generation to failure triage to bug filing — using LLM agents coordinated through lightweight, production-grade infrastructure.
+Why this stands out:
+
+Solves a real problem: 70% of developer time in testing is spent on repetitive analysis
+Uses cutting-edge tech: Multi-agent orchestration, MCP protocol, async workflows
+Production mindset: Observability, failure recovery, evaluation harness built-in
+Open source ready: MIT license, Docker deployment, comprehensive docs
+Demonstrates all NVIDIA requirements: multi-agent pipelines, eval systems, instrumentation, LLM judgment
+
+Target completion: 10-14 days for MVP with full documentation
+
+CORE ARCHITECTURE
+System Components
+1. Agent Orchestrator (Python + asyncio)
+
+Lightweight coordinator managing agent lifecycle and communication
+Uses Redis for agent state and task queue (optional: in-memory for simplicity)
+Implements circuit breaker pattern for LLM API failures
+Total: ~500 lines of clean Python
+
+2. Four Specialized Agents
+Agent A: Test Generator
+
+Input: Source code file or function
+Output: pytest test cases with edge cases
+Model: Claude 3.5 Sonnet (via Anthropic API) or local Qwen2.5-Coder-7B
+Instrumentation: logs test coverage metrics, generation time, token usage
+
+Agent B: Log Analyzer
+
+Input: Test execution logs, stack traces
+Output: Structured failure analysis (root cause, affected components, severity)
+Model: GPT-4o-mini (cost-effective) or local Llama-3.3-70B
+Instrumentation: tracks pattern matching accuracy, false positive rate
+
+Agent C: Failure Triage Agent
+
+Input: Failure analysis from Agent B
+Output: Priority ranking, duplicate detection, regression classification
+Model: Claude 3.5 Haiku (fast + cheap) or Gemini 2.0 Flash
+Instrumentation: measures triage accuracy against human labels
+
+Agent D: Bug Reporter
+
+Input: Triaged failures
+Output: GitHub issue via API (title, description, labels, assignment)
+Model: GPT-4o-mini (formatting + API calls)
+Integrations: GitHub API, Jira API, Linear API via MCP
+
+3. Evaluation System
+
+Golden test set: 50 curated examples across 5 failure types
+Metrics: precision/recall for triage, test coverage %, false alarm rate
+Automated eval runs on every pipeline change
+Results logged to SQLite + visualization dashboard
+
+4. Observability Layer
+
+Structured logging (JSON lines) to stdout + file
+OpenTelemetry traces for agent communication
+Prometheus metrics: agent latency, LLM token usage, failure rates
+Grafana dashboard (optional): visualize pipeline health
+
+
+TECHNOLOGY STACK (Open Source + Professional)
+Core Infrastructure
+
+Language: Python 3.11+ (type hints, async/await)
+Agent Framework: Custom lightweight orchestrator (no LangChain bloat)
+Task Queue: Redis (optional) or in-memory queue for simplicity
+State Management: Pydantic models + SQLite for persistence
+API Framework: FastAPI for optional REST API + webhooks
+
+LLM Integration (Multi-Model Support)
+
+Primary: Anthropic Claude 3.5 Sonnet/Haiku (via API)
+Fallback: OpenAI GPT-4o-mini (cost-effective)
+Local Option: Ollama + Qwen2.5-Coder-7B (fully self-hosted)
+Prompt Caching: Anthropic prompt caching to reduce costs 90%
+
+MCP Integration
+
+Protocol: Model Context Protocol for tool access
+Servers: GitHub MCP, Filesystem MCP, Slack MCP (for notifications)
+Implementation: MCP SDK (Python) for custom server if needed
+
+Testing & Quality
+
+Framework: pytest for all tests
+Coverage: pytest-cov (target 80%+)
+Linting: ruff (fast Python linter/formatter)
+Type Checking: mypy in strict mode
+
+Observability
+
+Logging: structlog (structured JSON logging)
+Tracing: OpenTelemetry SDK
+Metrics: prometheus_client
+Monitoring: Grafana (optional, Docker Compose setup provided)
+
+Deployment
+
+Containerization: Docker + docker-compose
+CI/CD: GitHub Actions (test + build + publish)
+Documentation: Sphinx + Read the Docs theme
+
+
+DETAILED IMPLEMENTATION PLAN
+Phase 1: Foundation (Days 1-3)
+Day 1: Project Structure + Agent Orchestrator
+matis/
+├── agents/
+│   ├── base.py          # Abstract agent base class
+│   ├── test_generator.py
+│   ├── log_analyzer.py
+│   ├── triage_agent.py
+│   └── bug_reporter.py
+├── orchestrator/
+│   ├── coordinator.py   # Main orchestration logic
+│   ├── circuit_breaker.py
+│   └── task_queue.py
+├── evals/
+│   ├── golden_set.json  # 50 test cases
+│   ├── evaluator.py     # Eval harness
+│   └── metrics.py
+├── observability/
+│   ├── logger.py        # Structured logging setup
+│   ├── tracer.py        # OpenTelemetry integration
+│   └── metrics.py       # Prometheus metrics
+├── integrations/
+│   ├── github_mcp.py    # GitHub issue creation
+│   └── slack_mcp.py     # Notifications
+├── tests/               # Full test coverage
+├── docker-compose.yml
+├── Dockerfile
+└── README.md
+Tasks:
+
+Set up base agent interface with health checks and retry logic
+Implement circuit breaker for LLM API failures (fail fast, exponential backoff)
+Build task queue with priority support
+Add structured logging (log agent ID, task ID, latency, tokens on every call)
+
+Success Criteria:
+
+Orchestrator can spawn 4 agents and pass messages
+Circuit breaker triggers after 3 consecutive API failures
+All logs are valid JSON with trace IDs
+
+
+Day 2: Test Generator Agent (Agent A)
+
+Prompt engineering: "Generate pytest tests for {code}. Include edge cases, error conditions, and boundary tests. Output only valid Python code."
+Code parsing: Extract function signatures using AST
+Validation: Run generated tests with pytest, capture failures
+Instrumentation: Log test count, coverage %, generation time per function
+
+Success Criteria:
+
+Generates runnable tests for 10 sample Python functions
+Achieves >70% branch coverage on simple functions
+Logs show token usage and latency per generation
+
+
+Day 3: Log Analyzer Agent (Agent B)
+
+Prompt: "Analyze this test failure log. Output JSON: {root_cause, affected_files, error_type, suggested_fix}"
+Parse pytest output (failures, tracebacks, assertion errors)
+Pattern matching: Classify common errors (ImportError, AssertionError, timeout)
+Instrumentation: Track classification accuracy against labeled dataset
+
+Success Criteria:
+
+Correctly identifies root cause in 8/10 sample failures
+Outputs valid JSON 100% of the time
+Runs in <3 seconds per log analysis
+
+
+Phase 2: Multi-Agent Pipeline (Days 4-6)
+Day 4: Triage Agent (Agent C) + Bug Reporter (Agent D)
+Agent C:
+
+Deduplication: Compare failure signatures using embedding similarity
+Priority scoring: Severity (1-5) based on affected components + frequency
+Regression detection: Compare against historical failures in SQLite
+Output: Ranked list of unique failures with metadata
+
+Agent D:
+
+GitHub API integration via MCP
+Issue template: Auto-fill title, body, labels from triage output
+Assignment logic: Tag relevant team based on file path
+Error handling: Retry on rate limits, log failed creations
+
+Success Criteria:
+
+Triage correctly deduplicates 9/10 similar failures
+GitHub issues created with proper formatting and labels
+All API calls have retry logic and timeout handling
+
+
+Day 5: End-to-End Pipeline Integration
+
+Connect all 4 agents in sequence: Test Gen → Log Analysis → Triage → Bug Filing
+Add async execution: Agents B/C/D can process multiple failures in parallel
+Implement checkpoint/resume: Save pipeline state to SQLite after each agent
+Build CLI: matis run --input code.py --output report.json
+
+Success Criteria:
+
+Full pipeline runs on sample Python project (e.g., open-source repo)
+Processes 100 test failures in <5 minutes
+No hanging tasks (all have timeouts)
+
+
+Day 6: Failure Recovery + Edge Cases
+
+What if Agent B hallucinates? → Validation schema, reject malformed JSON
+What if GitHub API is down? → Queue issues locally, retry later
+What if LLM times out? → Circuit breaker triggers, use cached responses
+What if two agents deadlock? → Timeout + auto-restart logic
+
+Additions:
+
+Add --dry-run mode (no actual GitHub issues)
+Add --model flag to switch between Claude/GPT/local models
+Add agent health endpoint: GET /health returns status of all agents
+
+Success Criteria:
+
+Deliberately fail one agent → orchestrator detects and recovers
+Run with GitHub API mocked → no crashes
+All failure modes logged with recovery actions
+
+
+Phase 3: Evaluation System (Days 7-8)
+Day 7: Build Golden Test Set
+
+Collect 50 real-world examples:
+
+10 import errors
+10 assertion failures
+10 timeout/performance issues
+10 dependency conflicts
+10 logic errors
+
+
+Human-label each with: expected root cause, priority, dedupe cluster
+Store in evals/golden_set.json
+
+
+Day 8: Automated Eval Harness
+
+Metrics:
+
+Test Generator: Coverage %, test validity rate
+Log Analyzer: Root cause accuracy (precision/recall)
+Triage Agent: Deduplication F1 score, priority ranking correlation
+Bug Reporter: Issue creation success rate
+
+
+Run evals on every code change (pre-commit hook)
+Output: evals/results.json with pass/fail + metric deltas
+
+Success Criteria:
+
+Eval runs in <2 minutes on full golden set
+Metrics baseline established (e.g., 85% root cause accuracy)
+CI fails if metrics drop >5%
+
+
+Phase 4: Observability + Docs (Days 9-10)
+Day 9: Full Observability Stack
+
+OpenTelemetry: Trace every agent interaction (span per LLM call)
+Prometheus: Expose metrics at /metrics endpoint
+
+agent_task_duration_seconds (histogram)
+llm_tokens_total (counter)
+pipeline_failures_total (counter by agent)
+
+
+Grafana dashboard: Import dashboard JSON with 6 panels
+
+Pipeline throughput
+Agent latency distribution
+LLM cost tracker
+Failure rate by type
+
+
+
+Success Criteria:
+
+All LLM calls have trace IDs linking logs → traces
+Grafana shows live metrics during pipeline run
+Can debug any failure by searching logs with trace ID
+
+
+Day 10: Documentation
+
+README.md: Project overview, quick start, architecture diagram
+docs/SETUP.md: Installation, API keys, Docker commands
+docs/AGENTS.md: What each agent does, prompt templates, model choices
+docs/EVALS.md: How to run evals, add new test cases, interpret metrics
+docs/CONTRIBUTING.md: Code style, testing requirements, PR process
+API Reference: Auto-generate from docstrings using Sphinx
+
+Bonus:
+
+Architecture diagram (use diagrams.py to generate PNG)
+Demo video (2-min screen recording showing pipeline run)
+Blog post draft: "Building a Multi-Agent Test System in 10 Days"
+
+
+Phase 5: Polish + Open Source Release (Days 11-14)
+Day 11: Performance Optimization
+
+Profile with py-spy → find bottlenecks
+Add LLM response caching (identical prompts → cached result)
+Batch similar tasks (e.g., analyze 10 logs in one LLM call)
+Benchmark: Process 1000 test failures, measure end-to-end time
+
+Target: <10 minutes for 1000 failures (with parallel agents)
+
+Day 12: Security + Production Readiness
+
+API key management: Use environment variables, never commit
+Input validation: Sanitize all user-provided code before LLM prompts
+Rate limiting: Respect LLM API limits (e.g., 50 req/min for Claude)
+Add --max-cost flag: Stop pipeline if estimated cost exceeds threshold
+
+
+Day 13: Example Use Cases
+
+Use Case 1: Analyze pytest failures from a CI run
+
+Input: pytest JSON report
+Output: Prioritized bug list + GitHub issues
+
+
+Use Case 2: Generate tests for a new feature branch
+
+Input: Git diff of changed files
+Output: New test file ready to commit
+
+
+Use Case 3: Regression triage on version upgrade
+
+Input: Test logs from v1 vs v2
+Output: Which failures are new, which are known
+
+
+
+Add these as runnable examples in examples/ directory
+
+Day 14: Open Source Launch
+
+GitHub: Polish README, add badges (build status, coverage, license)
+License: MIT (most permissive for portfolio projects)
+Docker Hub: Push images (matis:latest, matis:gpu for local models)
+Docs Site: Deploy to Read the Docs or GitHub Pages
+Community: Add issue templates, PR template, CODE_OF_CONDUCT.md
+Announcement: Post to r/MachineLearning, Hacker News, Twitter
+
+
+KEY DIFFERENTIATORS (Why This Project is Top 5%)
+1. Real-World Problem Solving
+
+Not a toy demo — solves actual pain in software testing
+Shows understanding of developer workflows
+Clear ROI: Saves 10+ hours/week for a mid-size team
+
+2. Production Engineering Mindset
+
+Every component has failure recovery
+Observability built-in from day 1
+Evals run automatically, not as an afterthought
+Circuit breakers, retries, timeouts — shows you've shipped code
+
+3. Multi-Model Support
+
+Not locked to one vendor (Claude, GPT, Gemini, local)
+Demonstrates cost vs quality tradeoffs
+Prompt caching reduces costs 90%
+
+4. MCP Integration
+
+Uses cutting-edge protocol (Model Context Protocol)
+Shows you understand tool-augmented LLMs
+GitHub/Slack integration is production-ready
+
+5. Evaluation Rigor
+
+50-case golden set with human labels
+Precision/recall metrics, not vibes
+CI fails if quality regresses
+
+6. Lightweight Architecture
+
+No LangChain bloat — custom orchestrator in 500 lines
+Redis optional (can run fully in-memory)
+Docker deployment fits on free tier cloud VMs
+
+7. Documentation Excellence
+
+Architecture diagrams, API docs, video demo
+Contributing guide shows you think about maintainability
+Clear setup instructions (someone can run it in 5 min)
+
+
+NVIDIA-SPECIFIC ALIGNMENT
+How this maps to the job description:
+RequirementHow This Project Demonstrates ItMulti-agent pipelines4 specialized agents with async orchestrationTest generationAgent A generates pytest suites from source codeLog analysisAgent B parses failures with pattern recognitionFailure triageAgent C deduplicates and prioritizes bugsBug-filing workflowsAgent D auto-creates GitHub issues via MCPEvaluation systemsGolden test set + automated eval harnessInstrumentation & loggingStructured logs, OpenTelemetry traces, PrometheusMonitoringGrafana dashboard for pipeline healthLLM failure awarenessCircuit breakers, validation schemas, fallback models
+Walkthrough talking points:
+
+"I built the orchestrator from scratch because LangChain adds 10x complexity for 2x functionality."
+"The circuit breaker saved me during OpenAI's API outage — system degraded gracefully."
+"My eval harness caught a regression where Agent B started hallucinating root causes."
+"I use prompt caching which cut my API costs from $50 to $5 per 1000 runs."
+
+
+DELIVERABLES CHECKLIST
+Code:
+
+ 4 functional agents with prompt templates
+ Orchestrator with retry/timeout logic
+ 50-case eval golden set + harness
+ GitHub/Slack MCP integration
+ Full test coverage (80%+ via pytest-cov)
+ Dockerfile + docker-compose.yml
+ CI/CD pipeline (GitHub Actions)
+
+Observability:
+
+ Structured JSON logging (every LLM call)
+ OpenTelemetry traces (span per agent interaction)
+ Prometheus metrics (latency, tokens, failures)
+ Grafana dashboard (6 panels minimum)
+
+Documentation:
+
+ README with architecture diagram
+ Setup guide (API keys, Docker commands)
+ Agent design docs (what, why, how)
+ Eval methodology explained
+ 3 runnable use case examples
+ API reference (auto-generated)
+
+Proof of Quality:
+
+ Demo video (2-min pipeline run)
+ Benchmark results (1000 failures in <10 min)
+ Eval metrics baseline (>85% accuracy)
+ Open-source release (GitHub + Docker Hub)
+
+
+EXECUTION COMMAND
+To the AI assistant building this:
+
+Start with the orchestrator (Day 1) — this is your foundation
+Build agents iteratively (Days 2-6) — test each one standalone before integrating
+Don't skip evals (Days 7-8) — without measurement, you have no proof of quality
+Observability is not optional (Day 9) — logs/traces are what make this production-grade
+Documentation sells the project (Day 10) — no one uses undocumented code
+
+Code quality rules:
+
+Every function has a docstring + type hints
+Every agent has unit tests + integration tests
+Every failure path has an explicit handler (no bare except:)
+Every LLM call is logged with prompt hash, tokens, latency
+Every external API call has retry logic + timeout
+
+Model usage strategy:
+
+Test Generator: Claude 3.5 Sonnet (best at code reasoning)
+Log Analyzer: GPT-4o-mini (cheap + fast for structured output)
+Triage Agent: Claude 3.5 Haiku (cheapest for classification)
+Bug Reporter: GPT-4o-mini (good at API formatting)
+Local fallback: Ollama + Qwen2.5-Coder-7B for all agents
+
+Prompt engineering principles:
+
+Include 2-3 examples in every prompt (few-shot learning)
+Always specify output format: "Output only valid JSON matching this schema: ..."
+Add grounding: "Base your analysis only on the provided logs. Do not make assumptions."
+Add error handling: "If you cannot determine X, output {uncertain: true}"
+
+When you get stuck:
+
+Check the evals — are you measuring the right thing?
+Simplify — can you remove a component and still solve the problem?
+Trace it — logs + spans will show you where it's failing
+
+
+SUCCESS METRICS
+Project is portfolio-ready when:
+
+✅ Someone can clone the repo and run docker-compose up → working system in 2 minutes
+✅ Evals pass on every commit (CI enforces quality)
+✅ You can demo the full pipeline in 5 minutes
+✅ Logs let you debug any failure without guessing
+✅ README explains the "why" not just the "how"
+✅ The project has >10 GitHub stars (shows others find it useful)
+
+Interview talking points checklist:
+
+ "Here's a failure where the circuit breaker saved the pipeline..."
+ "My evals caught this regression before it hit production..."
+ "I chose Haiku over Sonnet here because latency mattered more than accuracy..."
+ "The OpenTelemetry traces let me debug this cross-agent issue in 5 minutes..."
+ "I cache prompts which reduced my API costs 90%..."
+ "When GitHub's API went down, my system queued issues and retried automatically..."
+
+
+FINAL INSTRUCTIONS FOR IMPLEMENTATION
+Use the following tech exactly:
+
+Python 3.11+, asyncio, Pydantic v2, FastAPI 0.104+
+Anthropic Python SDK 0.8+, OpenAI Python SDK 1.3+
+pytest 7.4+, pytest-cov, pytest-asyncio
+structlog 23.1+, OpenTelemetry 1.20+
+Redis 7+ (optional), SQLite 3.4+
+Docker 24+, docker-compose v2
+
+Code style:
+
+ruff for linting (replaces black + isort + flake8)
+mypy in strict mode for type checking
+Max line length: 100 characters
+Docstrings: Google style
+
+Git workflow:
+
+main branch is always deployable
+Feature branches: feature/agent-name or feature/eval-harness
+Commits follow Conventional Commits: feat:, fix:, docs:, test:
+
+Testing strategy:
+
+Unit tests: Mock LLM calls, test agent logic
+Integration tests: Run agents with real API (in CI only)
+End-to-end test: Full pipeline on sample project
+
+Deploy target:
+
+Local: Docker Compose on laptop (works offline with Ollama)
+Cloud: AWS EC2 t3.medium or GCP e2-medium
+Free tier friendly: <$10/month with prompt caching
+
+
+GO BUILD IT
+You now have everything you need:
+
+Clear architecture (4 agents + orchestrator)
+Day-by-day implementation plan (14 days)
+Technology stack (all open source)
+Evaluation strategy (50-case golden set)
+Observability from day 1 (logs + traces + metrics)
+Production mindset (retries, timeouts, circuit breakers)
+Documentation plan (README + guides + API docs)
+
+This project will:
+✅ Solve a real problem (automated testing workflows)
+✅ Use cutting-edge tech (multi-agent, MCP, async Python)
+✅ Show production engineering skills (evals, observability, failure recovery)
+✅ Be fully open source with docs (GitHub + Docker Hub + demo)
+✅ Align perfectly with NVIDIA's job requirements
+Start with Day 1. Build the orchestrator. The rest will follow.
+Good luck. Ship it. 🚀

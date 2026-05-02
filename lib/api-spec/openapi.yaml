@@ -1,0 +1,845 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: MATIS Multi-Agent Test Automation System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: pipelines
+    description: Pipeline run management
+  - name: agents
+    description: Agent status and management
+  - name: failures
+    description: Test failure management
+  - name: bugs
+    description: Filed bug reports
+  - name: evals
+    description: Evaluation harness
+  - name: metrics
+    description: Observability metrics and dashboard summaries
+  - name: logs
+    description: Structured log entries
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /pipelines:
+    get:
+      operationId: listPipelines
+      tags: [pipelines]
+      summary: List all pipeline runs
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, running, completed, failed, partial]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of pipeline runs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineList"
+    post:
+      operationId: createPipeline
+      tags: [pipelines]
+      summary: Trigger a new pipeline run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePipelineBody"
+      responses:
+        "201":
+          description: Pipeline created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pipeline"
+
+  /pipelines/{id}:
+    get:
+      operationId: getPipeline
+      tags: [pipelines]
+      summary: Get pipeline run details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pipeline details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pipeline"
+        "404":
+          description: Not found
+
+  /pipelines/{id}/cancel:
+    post:
+      operationId: cancelPipeline
+      tags: [pipelines]
+      summary: Cancel a running pipeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pipeline"
+
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: List all agents and their current status
+      responses:
+        "200":
+          description: Agent statuses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentList"
+
+  /agents/{id}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      summary: Get detailed agent info
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  /failures:
+    get:
+      operationId: listFailures
+      tags: [failures]
+      summary: List test failures
+      parameters:
+        - name: pipelineId
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, triaged, filed, duplicate, ignored]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of failures
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FailureList"
+
+  /failures/{id}:
+    get:
+      operationId: getFailure
+      tags: [failures]
+      summary: Get failure details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Failure details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Failure"
+
+  /bugs:
+    get:
+      operationId: listBugs
+      tags: [bugs]
+      summary: List filed bug reports
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [queued, filed, failed, retrying]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of bug reports
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BugList"
+
+  /bugs/{id}:
+    get:
+      operationId: getBug
+      tags: [bugs]
+      summary: Get bug report details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Bug details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bug"
+
+  /evals:
+    get:
+      operationId: listEvals
+      tags: [evals]
+      summary: List evaluation runs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Eval run list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRunList"
+
+  /evals/run:
+    post:
+      operationId: runEval
+      tags: [evals]
+      summary: Trigger an evaluation run
+      responses:
+        "201":
+          description: Eval run started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRun"
+
+  /evals/{id}:
+    get:
+      operationId: getEval
+      tags: [evals]
+      summary: Get evaluation run results
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Eval run details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRun"
+
+  /metrics/summary:
+    get:
+      operationId: getMetricsSummary
+      tags: [metrics]
+      summary: Dashboard summary metrics
+      responses:
+        "200":
+          description: Summary metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricsSummary"
+
+  /metrics/throughput:
+    get:
+      operationId: getThroughputMetrics
+      tags: [metrics]
+      summary: Pipeline throughput over time (last 24h)
+      responses:
+        "200":
+          description: Throughput time series
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThroughputMetrics"
+
+  /metrics/agents:
+    get:
+      operationId: getAgentMetrics
+      tags: [metrics]
+      summary: Per-agent performance metrics
+      responses:
+        "200":
+          description: Agent metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentMetricsList"
+
+  /metrics/failure-breakdown:
+    get:
+      operationId: getFailureBreakdown
+      tags: [metrics]
+      summary: Failure counts broken down by type and severity
+      responses:
+        "200":
+          description: Failure breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FailureBreakdown"
+
+  /logs:
+    get:
+      operationId: listLogs
+      tags: [logs]
+      summary: List recent structured log entries
+      parameters:
+        - name: agentId
+          in: query
+          schema:
+            type: string
+        - name: pipelineId
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [debug, info, warn, error]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogList"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    Pipeline:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, failed, partial]
+        inputSource:
+          type: string
+        inputType:
+          type: string
+          enum: [source_file, pytest_json, git_diff, log_file]
+        model:
+          type: string
+        testsGenerated:
+          type: integer
+        failuresAnalyzed:
+          type: integer
+        bugsFiledCount:
+          type: integer
+        tokensUsed:
+          type: integer
+        costUsd:
+          type: number
+        durationMs:
+          type: integer
+        errorMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineStage"
+      required: [id, status, inputSource, inputType, model, testsGenerated, failuresAnalyzed, bugsFiledCount, tokensUsed, costUsd, durationMs, createdAt, updatedAt, stages]
+
+    PipelineStage:
+      type: object
+      properties:
+        name:
+          type: string
+          enum: [test_generation, log_analysis, triage, bug_filing]
+        status:
+          type: string
+          enum: [pending, running, completed, failed, skipped]
+        durationMs:
+          type: integer
+        tokensUsed:
+          type: integer
+        errorMessage:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          nullable: true
+      required: [name, status, durationMs, tokensUsed]
+
+    PipelineList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Pipeline"
+        total:
+          type: integer
+      required: [items, total]
+
+    CreatePipelineBody:
+      type: object
+      properties:
+        inputSource:
+          type: string
+        inputType:
+          type: string
+          enum: [source_file, pytest_json, git_diff, log_file]
+        model:
+          type: string
+          enum: [claude-3-5-sonnet, gpt-4o-mini, claude-3-5-haiku, gemini-2-flash]
+          default: claude-3-5-sonnet
+        dryRun:
+          type: boolean
+          default: false
+      required: [inputSource, inputType]
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [test_generator, log_analyzer, triage, bug_reporter]
+        status:
+          type: string
+          enum: [idle, busy, error, circuit_open, starting]
+        model:
+          type: string
+        currentTaskId:
+          type: string
+          nullable: true
+        tasksCompleted:
+          type: integer
+        tasksFailed:
+          type: integer
+        avgLatencyMs:
+          type: integer
+        totalTokensUsed:
+          type: integer
+        circuitBreakerState:
+          type: string
+          enum: [closed, half_open, open]
+        lastHeartbeat:
+          type: string
+        createdAt:
+          type: string
+      required: [id, name, type, status, model, tasksCompleted, tasksFailed, avgLatencyMs, totalTokensUsed, circuitBreakerState, lastHeartbeat, createdAt]
+
+    AgentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Agent"
+      required: [items]
+
+    Failure:
+      type: object
+      properties:
+        id:
+          type: string
+        pipelineId:
+          type: string
+        errorType:
+          type: string
+          enum: [import_error, assertion_error, timeout, dependency_conflict, logic_error, unknown]
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+        status:
+          type: string
+          enum: [pending, triaged, filed, duplicate, ignored]
+        rootCause:
+          type: string
+        affectedFiles:
+          type: array
+          items:
+            type: string
+        suggestedFix:
+          type: string
+        priority:
+          type: integer
+        isDuplicate:
+          type: boolean
+        duplicateOfId:
+          type: string
+          nullable: true
+        isRegression:
+          type: boolean
+        rawLog:
+          type: string
+        bugId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, pipelineId, errorType, severity, status, rootCause, affectedFiles, suggestedFix, priority, isDuplicate, isRegression, rawLog, createdAt]
+
+    FailureList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Failure"
+        total:
+          type: integer
+      required: [items, total]
+
+    Bug:
+      type: object
+      properties:
+        id:
+          type: string
+        failureId:
+          type: string
+        pipelineId:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        labels:
+          type: array
+          items:
+            type: string
+        assignee:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [queued, filed, failed, retrying]
+        githubIssueUrl:
+          type: string
+          nullable: true
+        githubIssueNumber:
+          type: integer
+          nullable: true
+        retryCount:
+          type: integer
+        errorMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, failureId, pipelineId, title, body, labels, status, retryCount, createdAt]
+
+    BugList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bug"
+        total:
+          type: integer
+      required: [items, total]
+
+    EvalRun:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [running, completed, failed]
+        totalCases:
+          type: integer
+        passedCases:
+          type: integer
+        failedCases:
+          type: integer
+        testGenCoveragePercent:
+          type: number
+        logAnalyzerPrecision:
+          type: number
+        logAnalyzerRecall:
+          type: number
+        triageF1Score:
+          type: number
+        bugFilingSuccessRate:
+          type: number
+        durationMs:
+          type: integer
+        createdAt:
+          type: string
+        completedAt:
+          type: string
+          nullable: true
+      required: [id, status, totalCases, passedCases, failedCases, testGenCoveragePercent, logAnalyzerPrecision, logAnalyzerRecall, triageF1Score, bugFilingSuccessRate, durationMs, createdAt]
+
+    EvalRunList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvalRun"
+      required: [items]
+
+    MetricsSummary:
+      type: object
+      properties:
+        totalPipelines:
+          type: integer
+        activePipelines:
+          type: integer
+        totalFailuresAnalyzed:
+          type: integer
+        totalBugsFiled:
+          type: integer
+        avgPipelineDurationMs:
+          type: integer
+        totalTokensUsed:
+          type: integer
+        totalCostUsd:
+          type: number
+        successRate:
+          type: number
+        agentHealthy:
+          type: integer
+        agentDegraded:
+          type: integer
+        lastEvalScore:
+          type: number
+          nullable: true
+      required: [totalPipelines, activePipelines, totalFailuresAnalyzed, totalBugsFiled, avgPipelineDurationMs, totalTokensUsed, totalCostUsd, successRate, agentHealthy, agentDegraded]
+
+    ThroughputDataPoint:
+      type: object
+      properties:
+        hour:
+          type: string
+        pipelinesRun:
+          type: integer
+        failuresAnalyzed:
+          type: integer
+        bugsFiledCount:
+          type: integer
+      required: [hour, pipelinesRun, failuresAnalyzed, bugsFiledCount]
+
+    ThroughputMetrics:
+      type: object
+      properties:
+        dataPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThroughputDataPoint"
+      required: [dataPoints]
+
+    AgentMetrics:
+      type: object
+      properties:
+        agentId:
+          type: string
+        agentName:
+          type: string
+        agentType:
+          type: string
+        avgLatencyMs:
+          type: integer
+        p95LatencyMs:
+          type: integer
+        totalTasks:
+          type: integer
+        successRate:
+          type: number
+        totalTokens:
+          type: integer
+        circuitBreakerTrips:
+          type: integer
+      required: [agentId, agentName, agentType, avgLatencyMs, p95LatencyMs, totalTasks, successRate, totalTokens, circuitBreakerTrips]
+
+    AgentMetricsList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentMetrics"
+      required: [items]
+
+    FailureBreakdownItem:
+      type: object
+      properties:
+        errorType:
+          type: string
+        severity:
+          type: string
+        count:
+          type: integer
+      required: [errorType, severity, count]
+
+    FailureBreakdown:
+      type: object
+      properties:
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/FailureBreakdownItem"
+        bySeverity:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+              count:
+                type: integer
+            required: [severity, count]
+      required: [byType, bySeverity]
+
+    LogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        level:
+          type: string
+          enum: [debug, info, warn, error]
+        message:
+          type: string
+        agentId:
+          type: string
+          nullable: true
+        agentType:
+          type: string
+          nullable: true
+        pipelineId:
+          type: string
+          nullable: true
+        traceId:
+          type: string
+          nullable: true
+        latencyMs:
+          type: integer
+          nullable: true
+        tokensUsed:
+          type: integer
+          nullable: true
+        metadata:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, level, message, createdAt]
+
+    LogList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LogEntry"
+        total:
+          type: integer
+      required: [items, total]
